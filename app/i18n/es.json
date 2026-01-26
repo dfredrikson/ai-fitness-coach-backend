@@ -1,0 +1,93 @@
+{
+    "es": {
+        "app": {
+            "name": "AI Fitness Coach",
+            "tagline": "Tu entrenador personal inteligente"
+        },
+        "auth": {
+            "login": "Iniciar Sesión",
+            "register": "Registrarse",
+            "logout": "Cerrar Sesión",
+            "email": "Correo electrónico",
+            "password": "Contraseña",
+            "name": "Nombre",
+            "forgotPassword": "¿Olvidaste tu contraseña?"
+        },
+        "nav": {
+            "dashboard": "Panel Principal",
+            "activities": "Actividades",
+            "chat": "Chat con Entrenador",
+            "routines": "Rutinas",
+            "settings": "Configuración"
+        },
+        "dashboard": {
+            "welcome": "¡Bienvenido, {name}!",
+            "recentActivities": "Actividades Recientes",
+            "weeklyProgress": "Progreso Semanal",
+            "noActivities": "No tienes actividades todavía. ¡Conecta Strava para comenzar!"
+        },
+        "strava": {
+            "connect": "Conectar con Strava",
+            "disconnect": "Desconectar Strava",
+            "connected": "Conectado",
+            "notConnected": "No conectado",
+            "sync": "Sincronizar Actividades"
+        },
+        "activities": {
+            "title": "Mis Actividades",
+            "type": "Tipo",
+            "distance": "Distancia",
+            "duration": "Duración",
+            "pace": "Ritmo",
+            "heartRate": "Frecuencia Cardíaca",
+            "elevation": "Desnivel",
+            "calories": "Calorías",
+            "analyze": "Analizar",
+            "viewAnalysis": "Ver Análisis"
+        },
+        "coach": {
+            "title": "Tu Entrenador IA",
+            "selectCoach": "Selecciona tu Entrenador",
+            "activeCoach": "Entrenador Activo",
+            "chat": "Chatear",
+            "placeholder": "Escribe tu mensaje...",
+            "send": "Enviar"
+        },
+        "routines": {
+            "title": "Mis Rutinas",
+            "create": "Crear Rutina",
+            "edit": "Editar",
+            "delete": "Eliminar",
+            "active": "Activa",
+            "inactive": "Inactiva",
+            "compliance": "Cumplimiento",
+            "days": {
+                "monday": "Lunes",
+                "tuesday": "Martes",
+                "wednesday": "Miércoles",
+                "thursday": "Jueves",
+                "friday": "Viernes",
+                "saturday": "Sábado",
+                "sunday": "Domingo"
+            }
+        },
+        "analysis": {
+            "technical": "Análisis Técnico",
+            "corrections": "Correcciones y Sugerencias",
+            "motivation": "Motivación"
+        },
+        "common": {
+            "save": "Guardar",
+            "cancel": "Cancelar",
+            "delete": "Eliminar",
+            "edit": "Editar",
+            "loading": "Cargando...",
+            "error": "Error",
+            "success": "Éxito",
+            "km": "km",
+            "min": "min",
+            "bpm": "bpm",
+            "m": "m"
+        }
+    }
+}
