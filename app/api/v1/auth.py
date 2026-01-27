@@ -35,6 +35,8 @@ async def register(user_data: UserCreate, db: Session = Depends(get_db)):
             status_code=500,
             detail="No hay coach por defecto configurado en el sistema"
         )
+    print("PASSWORD RECIBIDO:", user_data.password)
+    print("LARGO PASSWORD:", len(user_data.password))
 
     user = User(
         email=user_data.email,
