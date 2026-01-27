@@ -19,6 +19,9 @@ router = APIRouter(prefix="/auth", tags=["Autenticación"])
 
 @router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 async def register(user_data: UserCreate, db: Session = Depends(get_db)):
+    print("PASSWORD RECIBIDO:", user_data.password)
+    print("TIPO:", type(user_data.password))
+    print("LARGO:", len(user_data.password))
     """Registrar un nuevo usuario."""
     # Check if email already exists
     existing = db.query(User).filter(User.email == user_data.email).first()
@@ -35,8 +38,6 @@ async def register(user_data: UserCreate, db: Session = Depends(get_db)):
             status_code=500,
             detail="No hay coach por defecto configurado en el sistema"
         )
-    print("PASSWORD RECIBIDO:", user_data.password)
-    print("LARGO PASSWORD:", len(user_data.password))
 
     user = User(
         email=user_data.email,
