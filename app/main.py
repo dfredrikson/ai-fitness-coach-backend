@@ -9,6 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.config import get_settings
 from app.core.database import create_tables
 from app.api.v1 import api_router
+from app.scheduler import start_scheduler
 
 settings = get_settings()
 
@@ -40,6 +41,7 @@ app.include_router(api_router, prefix=settings.api_v1_prefix)
 async def startup_event():
     """Initialize database tables on startup."""
     create_tables()
+    start_scheduler()
 
 
 @app.get("/")
