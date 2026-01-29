@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
-from app.database import get_db
+from app.core.database import get_db
 from app.services.motivation import (
     get_daily_motivation,
     get_latest_activity_motivation
