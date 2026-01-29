@@ -79,7 +79,7 @@ def debug_all_daily(db: Session = Depends(get_db)):
         ]
     }
 
-@router.post("/seed-one")
+@router.get("/seed-one")
 def seed_one(db: Session = Depends(get_db)):
     msg = DailyMotivation(
         message="Disciplina > motivación. Entrená igual.",
