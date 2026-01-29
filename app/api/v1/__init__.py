@@ -7,6 +7,8 @@ from app.api.v1.strava import router as strava_router
 from app.api.v1.activities import router as activities_router
 from app.api.v1.coach import router as coach_router
 from app.api.v1.routines import router as routines_router
+from app.api.v1.motivation import router as motivation
+
 
 api_router = APIRouter()
 
@@ -16,3 +18,4 @@ api_router.include_router(strava_router)
 api_router.include_router(activities_router)
 api_router.include_router(coach_router)
 api_router.include_router(routines_router)
+api_router.include_router(motivation.router)

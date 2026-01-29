@@ -1,5 +1,13 @@
+from fastapi import APIRouter, Depends
+from sqlalchemy.orm import Session
+
+from app.database import get_db
+from app.models import DailyMotivation, ActivityMotivation
+
+router = APIRouter(prefix="/motivation", tags=["Motivation"])
+
 @router.get("/daily")
-def get_daily_motivation(db: Session = Depends(get_db)):
+def fetch_daily_motivation(db: Session = Depends(get_db)):
     msg = db.query(DailyMotivation)\
         .order_by(DailyMotivation.date.desc())\
         .first()
