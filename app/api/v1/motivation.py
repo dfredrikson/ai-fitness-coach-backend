@@ -32,7 +32,7 @@ def get_latest_activity_motivation(db: Session = Depends(get_db)):
 
 from datetime import datetime, date
 
-@router.post("/seed")
+@router.get("/seed")
 def seed_motivations(db: Session = Depends(get_db)):
 
     daily_messages = [
