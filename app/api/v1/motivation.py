@@ -28,3 +28,39 @@ def get_latest_activity_motivation(db: Session = Depends(get_db)):
 
     return {"message": msg.message}
 
+#temporal script for testing ///////////////////////////////////////////
+
+from datetime import datetime, date
+
+@router.post("/seed")
+def seed_motivations(db: Session = Depends(get_db)):
+
+    daily_messages = [
+        "Hoy es un gran día para entrenar 💪",
+        "La constancia vence a la motivación.",
+        "Paso a paso, progreso asegurado.",
+        "Aunque cueste, seguí. Vale la pena.",
+        "Tu yo del futuro te va a agradecer esto."
+    ]
+
+    activity_messages = [
+        "Excelente trabajo 💥 Seguimos así!",
+        "Me encanta tu constancia 🔥",
+        "Vamos que se puede 💪 Gran sesión.",
+        "Cada entrenamiento suma 🏃‍♂️",
+        "Orgulloso de tu disciplina 👏"
+    ]
+
+    # Insert daily if empty
+    if db.query(DailyMotivation).count() == 0:
+        for msg in daily_messages:
+            db.add(DailyMotivation(message=msg, date=date.today()))
+
+    # Insert activity if empty
+    if db.query(ActivityMotivation).count() == 0:
+        for msg in activity_messages:
+            db.add(ActivityMotivation(message=msg, created_at=datetime.utcnow()))
+
+    db.commit()
+
+    return {"status": "ok", "message": "Seed completed"}
