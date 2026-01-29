@@ -64,3 +64,17 @@ def seed_motivations(db: Session = Depends(get_db)):
     db.commit()
 
     return {"status": "ok", "message": "Seed completed"}
+
+@router.get("/debug/all-daily")
+def debug_all_daily(db: Session = Depends(get_db)):
+    rows = db.query(DailyMotivation).all()
+    return {
+        "count": len(rows),
+        "rows": [
+            {
+                "id": r.id,
+                "message": r.message,
+                "date": r.date
+            } for r in rows
+        ]
+    }
