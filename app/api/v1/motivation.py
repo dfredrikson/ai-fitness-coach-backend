@@ -1,90 +1,18 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
-from app.core.database import get_db
-from app.models import DailyMotivation, ActivityMotivation
+from app.database import get_db
+from app.services.motivation import (
+    get_daily_motivation,
+    get_latest_activity_motivation
+)
 
 router = APIRouter(prefix="/motivation", tags=["Motivation"])
 
 @router.get("/daily")
-def fetch_daily_motivation(db: Session = Depends(get_db)):
-    msg = db.query(DailyMotivation)\
-        .order_by(DailyMotivation.date.desc())\
-        .first()
-
-    if not msg:
-        return {"message": None}
-
-    return {"message": msg.message}
+def daily(db: Session = Depends(get_db)):
+    return get_daily_motivation(db)
 
 @router.get("/latest-activity")
-def get_latest_activity_motivation(db: Session = Depends(get_db)):
-    msg = db.query(ActivityMotivation)\
-        .order_by(ActivityMotivation.created_at.desc())\
-        .first()
-
-    if not msg:
-        return {"message": None}
-
-    return {"message": msg.message}
-
-#temporal script for testing ///////////////////////////////////////////
-
-from datetime import datetime, date
-
-@router.get("/seed")
-def seed_motivations(db: Session = Depends(get_db)):
-
-    daily_messages = [
-        "Hoy es un gran día para entrenar 💪",
-        "La constancia vence a la motivación.",
-        "Paso a paso, progreso asegurado.",
-        "Aunque cueste, seguí. Vale la pena.",
-        "Tu yo del futuro te va a agradecer esto."
-    ]
-
-    activity_messages = [
-        "Excelente trabajo 💥 Seguimos así!",
-        "Me encanta tu constancia 🔥",
-        "Vamos que se puede 💪 Gran sesión.",
-        "Cada entrenamiento suma 🏃‍♂️",
-        "Orgulloso de tu disciplina 👏"
-    ]
-
-    # Insert daily if empty
-    if db.query(DailyMotivation).count() == 0:
-        for msg in daily_messages:
-            db.add(DailyMotivation(message=msg, date=date.today()))
-
-    # Insert activity if empty
-    if db.query(ActivityMotivation).count() == 0:
-        for msg in activity_messages:
-            db.add(ActivityMotivation(message=msg, created_at=datetime.utcnow()))
-
-    db.commit()
-
-    return {"status": "ok", "message": "Seed completed"}
-
-@router.get("/debug/all-daily")
-def debug_all_daily(db: Session = Depends(get_db)):
-    rows = db.query(DailyMotivation).all()
-    return {
-        "count": len(rows),
-        "rows": [
-            {
-                "id": r.id,
-                "message": r.message,
-                "date": r.date
-            } for r in rows
-        ]
-    }
-
-@router.get("/seed-one")
-def seed_one(db: Session = Depends(get_db)):
-    msg = DailyMotivation(
-        message="Disciplina > motivación. Entrená igual.",
-        date=date.today()
-    )
-    db.add(msg)
-    db.commit()
-    return {"status": "ok"}
+def latest_activity(db: Session = Depends(get_db)):
+    return get_latest_activity_motivation(db)
