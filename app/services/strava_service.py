@@ -103,40 +103,35 @@ class StravaService:
             
             return response.json()
     
-    async def get_activities(self, user, db, page=1, per_page=30, after=None):
-        access_token = user.strava_access_token
+    async def get_activities(
+        self,
+        access_token=None,
+        token=None,
+        page: int = 1,
+        per_page: int = 30,
+        after: Optional[int] = None
+    ):
+        access_token = access_token or token
 
-        async with httpx.AsyncClient(timeout=15) as client:
+        if not access_token:
+            raise Exception("Missing Strava access token")
+
+        params = {"page": page, "per_page": per_page}
+        if after:
+            params["after"] = after
+
+        async with httpx.AsyncClient() as client:
             response = await client.get(
                 f"{self.api_url}/athlete/activities",
                 headers={"Authorization": f"Bearer {access_token}"},
-                params={"page": page, "per_page": per_page, "after": after}
+                params=params
             )
 
-            # Token expirado → refrescar
-            if response.status_code == 401:
-                print("🔄 Token expirado, intentando refresh...")
-
-                new_token = await self.refresh_access_token(user, db)
-
-                if not new_token:
-                    print("🚫 Strava necesita reconexión")
-                    raise StravaAPIException("STRAVA_RECONNECT_REQUIRED")
-
-                response = await client.get(
-                    f"{self.api_url}/athlete/activities",
-                    headers={"Authorization": f"Bearer {new_token}"},
-                    params={"page": page, "per_page": per_page, "after": after}
-                )
-
-
             if response.status_code != 200:
-                print("❌ Strava API error:", response.status_code, response.text)
                 raise StravaAPIException("Error al obtener actividades")
 
             return response.json()
 
-    
     def parse_activity(self, data: Dict[str, Any]) -> Dict[str, Any]:
         """Parse Strava activity data into our model format."""
         # Calculate pace (min/km) for runs
