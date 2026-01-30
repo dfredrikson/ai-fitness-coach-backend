@@ -170,7 +170,12 @@ class StravaService:
         if not user.is_strava_connected():
             return []
 
-        strava_activities = await self.get_activities(user, limit=limit) or []
+        access_token = user.strava_access_token
+
+        strava_activities = await self.get_activities(
+            access_token=access_token,
+            per_page=limit
+        ) or []
 
         strava_ids = set()
         for a in strava_activities:
