@@ -170,40 +170,42 @@ class StravaService:
         if not user.is_strava_connected():
             return []
 
-        # 1. Obtener actividades desde Strava
-        strava_activities = await get_activities(user, limit=limit)
+        from app.models import Activity
+        from datetime import datetime
 
-        # Normalizar IDs de Strava
-        strava_ids = {str(a["id"]) for a in strava_activities}
+        strava_activities = await get_activities(user, limit=limit) or []
 
-        # 2. Obtener actividades existentes en DB
-        existing_activities = db.query(Activity).filter_by(user_id=user.id).all()
-        existing_ids = {a.strava_id for a in existing_activities}
+        strava_ids = set()
+        for a in strava_activities:
+            if a.get("id"):
+                strava_ids.add(str(a["id"]))
 
-        # 3. Detectar nuevas y borradas
+        existing = db.query(Activity).filter_by(user_id=user.id).all()
+        existing_ids = {a.strava_id for a in existing}
+
         new_ids = strava_ids - existing_ids
         deleted_ids = existing_ids - strava_ids
 
         new_activities = []
 
-        # 4. Insertar nuevas actividades
+        # Insert new
         for act in strava_activities:
-            sid = str(act["id"])
+            sid = str(act.get("id"))
             if sid in new_ids:
                 activity = Activity(
                     user_id=user.id,
                     strava_id=sid,
-                    name=act.get("name"),
-                    type=act.get("type"),
+                    name=act.get("name", "Actividad"),
+                    type=act.get("type", "Workout"),
                     distance_km=(act.get("distance", 0) / 1000),
                     duration_minutes=(act.get("moving_time", 0) / 60),
-                    start_date=parse_date(act.get("start_date")),
+                    start_date=datetime.fromisoformat(act.get("start_date").replace("Z", "+00:00")),
                     analyzed=False
                 )
                 db.add(activity)
                 new_activities.append(activity)
 
-        # 5. Eliminar actividades borradas en Strava
+        # Delete removed
         if deleted_ids:
             db.query(Activity).filter(
                 Activity.user_id == user.id,
@@ -213,6 +215,7 @@ class StravaService:
         db.commit()
 
         return new_activities
+
 
 
 
