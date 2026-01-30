@@ -28,7 +28,7 @@ def random_activity_message(db: Session = Depends(get_db)):
 
     return {"message": msg.message}
 
-@router.post("/seed-activity")
+@router.get("/seed-activity")
 def seed_activity_messages(db: Session = Depends(get_db)):
     messages = [
         "🔥 Sumaste otra. El hábito gana.",
