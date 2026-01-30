@@ -103,42 +103,34 @@ class StravaService:
             
             return response.json()
     
-    async def get_activities(
-        self, 
-        access_token: str, 
-        page: int = 1, 
-        per_page: int = 30,
-        after: Optional[int] = None
-    ) -> List[Dict[str, Any]]:
-        params = {"page": page, "per_page": per_page}
-        if after:
-            params["after"] = after
+    async def get_activities(self, user, db, page=1, per_page=30, after=None):
+        access_token = user.strava_access_token
 
         async with httpx.AsyncClient(timeout=15) as client:
             response = await client.get(
                 f"{self.api_url}/athlete/activities",
                 headers={"Authorization": f"Bearer {access_token}"},
-                params=params
+                params={"page": page, "per_page": per_page, "after": after}
             )
+
+            # Token expirado → refrescar
+            if response.status_code == 401:
+                print("🔄 Token expirado, refrescando...")
+
+                new_token = await self.refresh_access_token(user, db)
+
+                response = await client.get(
+                    f"{self.api_url}/athlete/activities",
+                    headers={"Authorization": f"Bearer {new_token}"},
+                    params={"page": page, "per_page": per_page, "after": after}
+                )
 
             if response.status_code != 200:
                 print("❌ Strava API error:", response.status_code, response.text)
                 raise StravaAPIException("Error al obtener actividades")
 
             return response.json()
-    
-    async def get_activity_detail(self, access_token: str, activity_id: int) -> Dict[str, Any]:
-        """Get detailed activity information."""
-        async with httpx.AsyncClient() as client:
-            response = await client.get(
-                f"{self.api_url}/activities/{activity_id}",
-                headers={"Authorization": f"Bearer {access_token}"}
-            )
-            
-            if response.status_code != 200:
-                raise StravaAPIException(f"Error al obtener actividad {activity_id}")
-            
-            return response.json()
+
     
     def parse_activity(self, data: Dict[str, Any]) -> Dict[str, Any]:
         """Parse Strava activity data into our model format."""
@@ -172,10 +164,7 @@ class StravaService:
 
         access_token = user.strava_access_token
 
-        strava_activities = await self.get_activities(
-            access_token=access_token,
-            per_page=limit
-        ) or []
+        strava_activities = await self.get_activities(user, db, per_page=limit) or []
 
         strava_ids = set()
         for a in strava_activities:
@@ -232,6 +221,30 @@ class StravaService:
 
         return new_activities
 
+    async def refresh_access_token(self, user, db):
+        async with httpx.AsyncClient(timeout=15) as client:
+            response = await client.post(
+                "https://www.strava.com/oauth/token",
+                data={
+                    "client_id": self.client_id,
+                    "client_secret": self.client_secret,
+                    "grant_type": "refresh_token",
+                    "refresh_token": user.strava_refresh_token
+                }
+            )
+
+            if response.status_code != 200:
+                raise StravaAPIException("Error refrescando token Strava")
+
+            token_data = response.json()
+
+            user.strava_access_token = token_data["access_token"]
+            user.strava_refresh_token = token_data["refresh_token"]
+            user.strava_token_expires = datetime.fromtimestamp(token_data["expires_at"])
+
+            db.commit()
+
+            return user.strava_access_token
 
 
 
