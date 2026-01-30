@@ -164,57 +164,80 @@ class StravaService:
 
         access_token = user.strava_access_token
 
+        # 1. Fetch recent activities from Strava
         strava_activities = await self.get_activities(
             access_token,
             page=1,
             per_page=limit
         ) or []
 
-        strava_ids = set()
-        for a in strava_activities:
-            if a.get("id"):
-                strava_ids.add(str(a["id"]))
+        if not strava_activities:
+            return []
 
-        existing = db.query(Activity).filter_by(user_id=user.id).all()
-        existing_ids = {str(a.strava_id) for a in existing if a.strava_id}
-
-        new_ids = strava_ids - existing_ids
-        deleted_ids = existing_ids - strava_ids
+        # 2. Determine time window for "Mirroring"
+        # We only want to mirror (add/delete) activities within the range returned by Strava.
+        # This prevents deleting historical activities that were not returned in this batch.
+        
+        # Sort by date to be sure
+        strava_activities.sort(key=lambda x: x["start_date"], reverse=True)
+        
+        # Taking the oldest date in this batch as the boundary
+        # Parse the oldest date and ensure it's timezone-aware for comparison
+        oldest_activity = strava_activities[-1]
+        min_date_str = oldest_activity["start_date"].replace("Z", "+00:00")
+        min_date = datetime.fromisoformat(min_date_str)
+        
+        # 3. Query DB only for activities in this window
+        # This fixes the performance issue (no longer querying ALL history)
+        # and the logic issue (no longer deleting history outside the window)
+        existing_in_window = db.query(Activity).filter(
+            Activity.user_id == user.id,
+            Activity.start_date >= min_date
+        ).all()
+        
+        existing_map = {str(a.strava_id): a for a in existing_in_window if a.strava_id}
+        strava_map = {str(a["id"]): a for a in strava_activities if a.get("id")}
+        
+        # 4. Calculate diffs
+        # IDs in Strava but not in DB (within window) -> CREATE
+        new_ids = set(strava_map.keys()) - set(existing_map.keys())
+        
+        # IDs in DB but not in Strava (within window) -> DELETE (Mirroring)
+        deleted_ids = set(existing_map.keys()) - set(strava_map.keys())
 
         new_activities = []
 
         # Insert new activities
-        for act in strava_activities:
-            sid = str(act.get("id"))
+        for sid in new_ids:
+            act = strava_map[sid]
+            try:
+                activity = Activity(
+                    user_id=user.id,
+                    strava_id=int(sid),
+                    name=act.get("name", "Actividad"),
+                    type=act.get("type", "Workout"),
+                    start_date=datetime.fromisoformat(
+                        act.get("start_date").replace("Z", "+00:00")
+                    ),
+                    distance_meters=act.get("distance", 0),
+                    duration_seconds=act.get("moving_time", 0),
+                    elevation_gain=act.get("total_elevation_gain", 0),
+                    calories=act.get("calories"),
+                    avg_heartrate=act.get("average_heartrate"),
+                    max_heartrate=act.get("max_heartrate"),
+                    raw_data=act,
+                    analyzed=False
+                )
 
-            if sid in new_ids:
-                try:
-                    activity = Activity(
-                        user_id=user.id,
-                        strava_id=int(sid),
-                        name=act.get("name", "Actividad"),
-                        type=act.get("type", "Workout"),
-                        start_date=datetime.fromisoformat(
-                            act.get("start_date").replace("Z", "+00:00")
-                        ),
-                        distance_meters=act.get("distance", 0),
-                        duration_seconds=act.get("moving_time", 0),
-                        elevation_gain=act.get("total_elevation_gain", 0),
-                        calories=act.get("calories"),
-                        avg_heartrate=act.get("average_heartrate"),
-                        max_heartrate=act.get("max_heartrate"),
-                        raw_data=act,
-                        analyzed=False
-                    )
+                db.add(activity)
+                new_activities.append(activity)
 
-                    db.add(activity)
-                    new_activities.append(activity)
+            except Exception as e:
+                print("❌ Error creando actividad:", sid, e)
 
-                except Exception as e:
-                    print("❌ Error creando actividad:", sid, e)
-
-        # Delete removed activities
+        # Delete removed activities (Mirroring)
         if deleted_ids:
+            print(f"🗑️ Deleting {len(deleted_ids)} activities removed from Strava in this window.")
             db.query(Activity).filter(
                 Activity.user_id == user.id,
                 Activity.strava_id.in_([int(x) for x in deleted_ids])
