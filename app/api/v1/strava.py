@@ -83,6 +83,13 @@ async def sync_activities(
 ):
     """Sincronizar actividades desde Strava."""
     synced = await strava_service.sync_activities(current_user, db, limit=limit)
+
+
+    if isinstance(synced, dict) and synced.get("reconnect_required"):
+        return {
+            "error": "strava_reconnect_required",
+            "message": "Necesitás reconectar Strava"
+        }
     
     return {
         "message": f"Se sincronizaron {len(synced)} actividades nuevas",

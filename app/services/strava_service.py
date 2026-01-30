@@ -115,15 +115,20 @@ class StravaService:
 
             # Token expirado → refrescar
             if response.status_code == 401:
-                print("🔄 Token expirado, refrescando...")
+                print("🔄 Token expirado, intentando refresh...")
 
                 new_token = await self.refresh_access_token(user, db)
+
+                if not new_token:
+                    print("🚫 Strava necesita reconexión")
+                    raise StravaAPIException("STRAVA_RECONNECT_REQUIRED")
 
                 response = await client.get(
                     f"{self.api_url}/athlete/activities",
                     headers={"Authorization": f"Bearer {new_token}"},
                     params={"page": page, "per_page": per_page, "after": after}
                 )
+
 
             if response.status_code != 200:
                 print("❌ Strava API error:", response.status_code, response.text)
@@ -164,8 +169,13 @@ class StravaService:
 
         access_token = user.strava_access_token
 
-        strava_activities = await self.get_activities(user, db, per_page=limit) or []
-
+        try:
+            strava_activities = await self.get_activities(user, db, per_page=limit) or []
+        except StravaAPIException as e:
+            if str(e) == "STRAVA_RECONNECT_REQUIRED":
+                return {"reconnect_required": True}
+            raise
+        
         strava_ids = set()
         for a in strava_activities:
             if a.get("id"):
@@ -222,19 +232,21 @@ class StravaService:
         return new_activities
 
     async def refresh_access_token(self, user, db):
-        async with httpx.AsyncClient(timeout=15) as client:
-            response = await client.post(
-                "https://www.strava.com/oauth/token",
-                data={
-                    "client_id": self.client_id,
-                    "client_secret": self.client_secret,
-                    "grant_type": "refresh_token",
-                    "refresh_token": user.strava_refresh_token
-                }
-            )
+        try:
+            async with httpx.AsyncClient(timeout=15) as client:
+                response = await client.post(
+                    "https://www.strava.com/oauth/token",
+                    data={
+                        "client_id": self.client_id,
+                        "client_secret": self.client_secret,
+                        "grant_type": "refresh_token",
+                        "refresh_token": user.strava_refresh_token
+                    }
+                )
 
             if response.status_code != 200:
-                raise StravaAPIException("Error refrescando token Strava")
+                print("❌ Refresh token inválido:", response.text)
+                return None
 
             token_data = response.json()
 
@@ -245,6 +257,11 @@ class StravaService:
             db.commit()
 
             return user.strava_access_token
+
+        except Exception as e:
+            print("❌ Error refrescando token:", e)
+            return None
+
 
 
 
