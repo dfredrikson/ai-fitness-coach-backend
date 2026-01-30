@@ -166,14 +166,11 @@ class StravaService:
             "raw_data": data
         }
     
-    async def sync_activities(user, db, limit=30):
+    async def sync_activities(self, user, db, limit=30):
         if not user.is_strava_connected():
             return []
 
-        from app.models import Activity
-        from datetime import datetime
-
-        strava_activities = await get_activities(user, limit=limit) or []
+        strava_activities = await self.get_activities(user, limit=limit) or []
 
         strava_ids = set()
         for a in strava_activities:
@@ -188,7 +185,7 @@ class StravaService:
 
         new_activities = []
 
-        # Insert new
+        # Insert new activities
         for act in strava_activities:
             sid = str(act.get("id"))
             if sid in new_ids:
@@ -199,13 +196,15 @@ class StravaService:
                     type=act.get("type", "Workout"),
                     distance_km=(act.get("distance", 0) / 1000),
                     duration_minutes=(act.get("moving_time", 0) / 60),
-                    start_date=datetime.fromisoformat(act.get("start_date").replace("Z", "+00:00")),
+                    start_date=datetime.fromisoformat(
+                        act.get("start_date").replace("Z", "+00:00")
+                    ),
                     analyzed=False
                 )
                 db.add(activity)
                 new_activities.append(activity)
 
-        # Delete removed
+        # Delete removed activities
         if deleted_ids:
             db.query(Activity).filter(
                 Activity.user_id == user.id,
@@ -215,6 +214,7 @@ class StravaService:
         db.commit()
 
         return new_activities
+
 
 
 
