@@ -128,7 +128,8 @@ class StravaService:
             )
 
             if response.status_code != 200:
-                raise StravaAPIException("Error al obtener actividades")
+                print(f"❌ Strava API Warning: {response.status_code} - {response.text}")
+                raise StravaAPIException(f"Error al obtener actividades: {response.status_code}")
 
             return response.json()
 
@@ -163,7 +164,8 @@ class StravaService:
             if not user.is_strava_connected():
                 return []
 
-            access_token = user.strava_access_token
+            # Ensure token is valid (refresh if needed)
+            access_token = await self.ensure_valid_token(user, db)
 
             # 1. Fetch recent activities from Strava
             strava_activities = await self.get_activities(
