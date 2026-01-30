@@ -162,27 +162,25 @@ class StravaService:
             "calories": data.get("calories"),
             "raw_data": data
         }
-    
+        
     async def sync_activities(self, user, db, limit=30):
         if not user.is_strava_connected():
             return []
 
         access_token = user.strava_access_token
 
-        try:
-            strava_activities = await self.get_activities(user, db, per_page=limit) or []
-        except StravaAPIException as e:
-            if str(e) == "STRAVA_RECONNECT_REQUIRED":
-                return {"reconnect_required": True}
-            raise
-        
+        strava_activities = await self.get_activities(
+            access_token=access_token,
+            per_page=limit
+        ) or []
+
         strava_ids = set()
         for a in strava_activities:
             if a.get("id"):
                 strava_ids.add(str(a["id"]))
 
         existing = db.query(Activity).filter_by(user_id=user.id).all()
-        existing_ids = {a.strava_id for a in existing}
+        existing_ids = {str(a.strava_id) for a in existing if a.strava_id}
 
         new_ids = strava_ids - existing_ids
         deleted_ids = existing_ids - strava_ids
@@ -192,24 +190,24 @@ class StravaService:
         # Insert new activities
         for act in strava_activities:
             sid = str(act.get("id"))
+
             if sid in new_ids:
                 try:
-                    raw_date = act.get("start_date")
-
-                    start_date = None
-                    if raw_date:
-                        start_date = datetime.fromisoformat(
-                            raw_date.replace("Z", "+00:00")
-                        )
-
                     activity = Activity(
                         user_id=user.id,
-                        strava_id=sid,
-                        name=act.get("name") or "Actividad",
-                        type=act.get("type") or "Workout",
-                        distance_km=(act.get("distance", 0) / 1000),
-                        duration_minutes=(act.get("moving_time", 0) / 60),
-                        start_date=start_date,
+                        strava_id=int(sid),
+                        name=act.get("name", "Actividad"),
+                        type=act.get("type", "Workout"),
+                        start_date=datetime.fromisoformat(
+                            act.get("start_date").replace("Z", "+00:00")
+                        ),
+                        distance_meters=act.get("distance", 0),
+                        duration_seconds=act.get("moving_time", 0),
+                        elevation_gain=act.get("total_elevation_gain", 0),
+                        calories=act.get("calories"),
+                        avg_heartrate=act.get("average_heartrate"),
+                        max_heartrate=act.get("max_heartrate"),
+                        raw_data=act,
                         analyzed=False
                     )
 
@@ -219,17 +217,17 @@ class StravaService:
                 except Exception as e:
                     print("❌ Error creando actividad:", sid, e)
 
-
         # Delete removed activities
         if deleted_ids:
             db.query(Activity).filter(
                 Activity.user_id == user.id,
-                Activity.strava_id.in_(deleted_ids)
+                Activity.strava_id.in_([int(x) for x in deleted_ids])
             ).delete(synchronize_session=False)
 
         db.commit()
 
         return new_activities
+
 
     async def refresh_access_token(self, user, db):
         try:
