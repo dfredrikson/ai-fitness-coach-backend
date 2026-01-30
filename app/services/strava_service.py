@@ -162,7 +162,7 @@ class StravaService:
             "calories": data.get("calories"),
             "raw_data": data
         }
-        
+
     async def sync_activities(self, user, db, limit=30):
         if not user.is_strava_connected():
             return []
@@ -170,7 +170,8 @@ class StravaService:
         access_token = user.strava_access_token
 
         strava_activities = await self.get_activities(
-            access_token=access_token,
+            access_token,
+            page=1,
             per_page=limit
         ) or []
 
