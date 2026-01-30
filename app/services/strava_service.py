@@ -110,21 +110,21 @@ class StravaService:
         per_page: int = 30,
         after: Optional[int] = None
     ) -> List[Dict[str, Any]]:
-        """Get list of athlete activities."""
         params = {"page": page, "per_page": per_page}
         if after:
             params["after"] = after
-        
-        async with httpx.AsyncClient() as client:
+
+        async with httpx.AsyncClient(timeout=15) as client:
             response = await client.get(
                 f"{self.api_url}/athlete/activities",
                 headers={"Authorization": f"Bearer {access_token}"},
                 params=params
             )
-            
+
             if response.status_code != 200:
+                print("❌ Strava API error:", response.status_code, response.text)
                 raise StravaAPIException("Error al obtener actividades")
-            
+
             return response.json()
     
     async def get_activity_detail(self, access_token: str, activity_id: int) -> Dict[str, Any]:
@@ -194,20 +194,32 @@ class StravaService:
         for act in strava_activities:
             sid = str(act.get("id"))
             if sid in new_ids:
-                activity = Activity(
-                    user_id=user.id,
-                    strava_id=sid,
-                    name=act.get("name", "Actividad"),
-                    type=act.get("type", "Workout"),
-                    distance_km=(act.get("distance", 0) / 1000),
-                    duration_minutes=(act.get("moving_time", 0) / 60),
-                    start_date=datetime.fromisoformat(
-                        act.get("start_date").replace("Z", "+00:00")
-                    ),
-                    analyzed=False
-                )
-                db.add(activity)
-                new_activities.append(activity)
+                try:
+                    raw_date = act.get("start_date")
+
+                    start_date = None
+                    if raw_date:
+                        start_date = datetime.fromisoformat(
+                            raw_date.replace("Z", "+00:00")
+                        )
+
+                    activity = Activity(
+                        user_id=user.id,
+                        strava_id=sid,
+                        name=act.get("name") or "Actividad",
+                        type=act.get("type") or "Workout",
+                        distance_km=(act.get("distance", 0) / 1000),
+                        duration_minutes=(act.get("moving_time", 0) / 60),
+                        start_date=start_date,
+                        analyzed=False
+                    )
+
+                    db.add(activity)
+                    new_activities.append(activity)
+
+                except Exception as e:
+                    print("❌ Error creando actividad:", sid, e)
+
 
         # Delete removed activities
         if deleted_ids:
