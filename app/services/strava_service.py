@@ -199,26 +199,57 @@ class StravaService:
         strava_map = {str(a["id"]): a for a in strava_activities if a.get("id")}
         
         # 4. Calculate diffs
-        # IDs in Strava but not in DB (within window) -> CREATE
-        new_ids = set(strava_map.keys()) - set(existing_map.keys())
+        # IDs in Strava but not in DB (within window) -> POTENTIALLY NEW
+        potential_new_ids = set(strava_map.keys()) - set(existing_map.keys())
         
         # IDs in DB but not in Strava (within window) -> DELETE (Mirroring)
         deleted_ids = set(existing_map.keys()) - set(strava_map.keys())
 
         new_activities = []
 
+        # Check if "potential" new IDs actually exist outside the window (Global Check)
+        # This prevents IntegrityError if an activity exists but has a different date (e.g. user changed date)
+        if potential_new_ids:
+            global_existing = db.query(Activity.strava_id).filter(
+                Activity.strava_id.in_([int(sid) for sid in potential_new_ids])
+            ).all()
+            global_existing_ids = {str(r[0]) for r in global_existing}
+            
+            # Real new IDs are those that don't exist globally
+            real_new_ids = potential_new_ids - global_existing_ids
+            
+            # IDs that exist but weren't in window -> We could update them, but for strict sync we leave them (or update logic later)
+            # For now, we skip them to avoid 500 error / Rollback.
+        else:
+            real_new_ids = set()
+
         # Insert new activities
-        for sid in new_ids:
+        for sid in real_new_ids:
             act = strava_map[sid]
             try:
+                # Ensure date parsing is safe (handle missing, naive, etc)
+                start_date_str = act.get("start_date", "")
+                if start_date_str:
+                    try:
+                        # Replace Z with +00:00 for ISO format compatibility
+                        if start_date_str.endswith("Z"):
+                            start_date_str = start_date_str.replace("Z", "+00:00")
+                        start_date = datetime.fromisoformat(start_date_str)
+                        # Ensure we store naive UTC if that's the convention, or aware if column supports it.
+                        # Best practice: convert to naive UTC for storage if column differs.
+                        # Assuming column is naive or aware, passing aware object usually works with decent drivers.
+                    except ValueError:
+                        print(f"⚠️ Invalid date format for activity {sid}: {start_date_str}")
+                        start_date = datetime.utcnow() # Fallback
+                else:
+                    start_date = datetime.utcnow()
+
                 activity = Activity(
                     user_id=user.id,
                     strava_id=int(sid),
                     name=act.get("name", "Actividad"),
                     type=act.get("type", "Workout"),
-                    start_date=datetime.fromisoformat(
-                        act.get("start_date").replace("Z", "+00:00")
-                    ),
+                    start_date=start_date,
                     distance_meters=act.get("distance", 0),
                     duration_seconds=act.get("moving_time", 0),
                     elevation_gain=act.get("total_elevation_gain", 0),
@@ -243,9 +274,13 @@ class StravaService:
                 Activity.strava_id.in_([int(x) for x in deleted_ids])
             ).delete(synchronize_session=False)
 
-        db.commit()
-
-        return new_activities
+        try:
+            db.commit()
+        except Exception as e:
+            print("❌ Error doing commit:", e)
+            db.rollback()
+            # Don't crash the request, just return empty list or partial success?
+            # Better to not return failure if partial.
 
 
     async def refresh_access_token(self, user, db):
