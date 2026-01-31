@@ -5,6 +5,8 @@ Entrenador personal inteligente con integración Strava y análisis IA.
 """
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi import Request
+import os
 
 from app.config import get_settings
 from app.core.database import create_tables
@@ -94,3 +96,8 @@ async def serve_spa(full_path: str):
     if os.path.exists(index_path):
         return FileResponse(index_path)
     return {"error": "Frontend not found", "path": frontend_path}
+
+@app.get("/{full_path:path}")
+async def serve_frontend(full_path: str):
+    index_path = os.path.join("static", "index.html")
+    return FileResponse(index_path)
