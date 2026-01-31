@@ -62,8 +62,22 @@ from fastapi.responses import FileResponse
 import os
 
 # Configurable frontend path
-# Default to local development path, but allow override via env var (e.g. for Railway)
-frontend_path = os.getenv("FRONTEND_BUILD_DIR", "../../ai-fitness-coach-frontend/dist")
+# Priority:
+# 1. FRONTEND_BUILD_DIR env var
+# 2. ./static (bundled in the backend repo for production)
+# 3. ../../ai-fitness-coach-frontend/dist (local development sibling repo)
+
+frontend_path = os.getenv("FRONTEND_BUILD_DIR")
+
+if not frontend_path:
+    # Check for bundled static folder in current directory
+    bundled_path = os.path.join(os.path.dirname(__file__), "static")
+    if os.path.exists(bundled_path):
+        frontend_path = bundled_path
+    else:
+        # Fallback to local sibling development path
+        frontend_path = "../../ai-fitness-coach-frontend/dist"
+
 frontend_path = os.path.abspath(frontend_path)
 
 # Mount assets if directory exists
