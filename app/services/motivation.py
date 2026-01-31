@@ -5,10 +5,37 @@ from app.models.daily_motivation import DailyMotivation
 from app.models.activity_motivation import ActivityMotivation
 
 DEFAULT_MESSAGES = [
-    "Disciplina > motivación. Entrená igual.",
-    "Hecho hoy > perfecto mañana.",
-    "Nadie entrena motivado. Entrená comprometido.",
-    "El progreso ama la constancia.",
+    "Un pequeño paso hoy cambia tu mañana.",
+    "La constancia crea resultados.",
+    "Avanzar lento también es avanzar.",
+    "Elegí progreso, no perfección.",
+    "Hoy cuenta. Hacelo valer.",
+    "Disciplina antes que excusas.",
+    "Tu futuro empieza hoy.",
+    "Menos excusas, más acción.",
+    "Hacelo simple. Hacelo posible.",
+    "Un día a la vez.",
+    "La acción vence a la duda.",
+    "Seguir es ganar.",
+    "Cada día suma.",
+    "El hábito es poder.",
+    "Constancia supera talento.",
+    "Hoy es un buen día para empezar.",
+    "Elegí moverte. Elegí crecer.",
+    "Progreso real, todos los días.",
+    "Pequeños esfuerzos, grandes cambios.",
+    "Lo importante es no parar.",
+    "Hoy podés un poco más.",
+    "Tu mejor versión se construye.",
+    "Menos pensar, más hacer.",
+    "El cambio empieza con acción.",
+    "Hacelo por vos.",
+    "Avanzá, aunque sea poco.",
+    "Cada decisión cuenta.",
+    "El esfuerzo siempre vuelve.",
+    "Hoy construís tu disciplina.",
+    "Seguí. Estás en camino."
+     
 ]
 
 def get_daily_motivation(db: Session):
