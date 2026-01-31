@@ -34,6 +34,7 @@ app.add_middleware(
 )
 
 # Include API router
+# Include API router
 app.include_router(api_router, prefix=settings.api_v1_prefix)
 
 
@@ -44,18 +45,21 @@ async def startup_event():
     start_scheduler()
 
 
-@app.get("/")
-async def root():
-    """Root endpoint."""
-    return {
-        "name": settings.app_name,
-        "version": "1.0.0",
-        "status": "running",
-        "docs": "/docs" if settings.debug else None
-    }
-
-
 @app.get("/health")
 async def health_check():
     """Health check endpoint."""
     return {"status": "healthy"}
+
+
+# Serve static files from the build directory
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
+import os
+
+# Mount assets
+app.mount("/assets", StaticFiles(directory="../../ai-fitness-coach-frontend/dist/assets"), name="assets")
+
+# Catch-all route for SPA
+@app.get("/{full_path:path}")
+async def serve_spa(full_path: str):
+    return FileResponse("../../ai-fitness-coach-frontend/dist/index.html")
