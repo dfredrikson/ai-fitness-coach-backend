@@ -56,10 +56,27 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 import os
 
-# Mount assets
-app.mount("/assets", StaticFiles(directory="../../ai-fitness-coach-frontend/dist/assets"), name="assets")
+# Serve static files from the build directory
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
+import os
+
+# Configurable frontend path
+# Default to local development path, but allow override via env var (e.g. for Railway)
+frontend_path = os.getenv("FRONTEND_BUILD_DIR", "../../ai-fitness-coach-frontend/dist")
+frontend_path = os.path.abspath(frontend_path)
+
+# Mount assets if directory exists
+assets_path = os.path.join(frontend_path, "assets")
+if os.path.exists(assets_path):
+    app.mount("/assets", StaticFiles(directory=assets_path), name="assets")
+else:
+    print(f"WARNING: Assets directory not found at {assets_path}. Frontend will not load correctly.")
 
 # Catch-all route for SPA
 @app.get("/{full_path:path}")
 async def serve_spa(full_path: str):
-    return FileResponse("../../ai-fitness-coach-frontend/dist/index.html")
+    index_path = os.path.join(frontend_path, "index.html")
+    if os.path.exists(index_path):
+        return FileResponse(index_path)
+    return {"error": "Frontend not found", "path": frontend_path}
