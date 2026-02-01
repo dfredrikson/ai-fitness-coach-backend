@@ -305,5 +305,106 @@ class StravaService:
 
 
 
+    async def get_activity(self, access_token: str, activity_id: int) -> Dict[str, Any]:
+        """Fetch a single activity detail from Strava."""
+        async with httpx.AsyncClient() as client:
+            response = await client.get(
+                f"{self.api_url}/activities/{activity_id}",
+                headers={"Authorization": f"Bearer {access_token}"}
+            )
+            
+            if response.status_code == 404:
+                return None
+            
+            if response.status_code != 200:
+                raise StravaAPIException(f"Error al obtener actividad {activity_id}: {response.status_code}")
+            
+            return response.json()
+
+    async def _save_activity(self, user: User, activity_data: Dict[str, Any], db: Session) -> Activity:
+        """Helper to create and save an activity object from raw Strava data."""
+        # Check if exists first
+        existing = db.query(Activity).filter(Activity.strava_id == activity_data["id"]).first()
+        if existing:
+            # Update fields if needed (optional)
+            return existing
+
+        start_date_str = activity_data.get("start_date", "")
+        if start_date_str:
+            if start_date_str.endswith("Z"):
+                start_date_str = start_date_str.replace("Z", "+00:00")
+            start_date = datetime.fromisoformat(start_date_str)
+        else:
+            start_date = datetime.utcnow()
+
+        activity = Activity(
+            user_id=user.id,
+            strava_id=activity_data["id"],
+            name=activity_data.get("name", "Actividad"),
+            type=activity_data.get("type", "Workout"),
+            start_date=start_date,
+            distance_meters=activity_data.get("distance", 0),
+            duration_seconds=activity_data.get("moving_time", 0),
+            elevation_gain=activity_data.get("total_elevation_gain", 0),
+            calories=activity_data.get("calories"),
+            avg_heartrate=activity_data.get("average_heartrate"),
+            max_heartrate=activity_data.get("max_heartrate"),
+            raw_data=activity_data,
+            analyzed=False
+        )
+
+        db.add(activity)
+        db.commit()
+        return activity
+
+
+    async def process_webhook_event(self, event: Dict[str, Any], db: Session):
+        """Handle Strava webhook events."""
+        print(f"🔄 Strava Webhook Received: {event}")
+        
+        owner_id = event.get("owner_id")
+        object_id = event.get("object_id")
+        aspect_type = event.get("aspect_type") # create, update, delete
+        object_type = event.get("object_type") # activity, athlete
+
+        if object_type != "activity":
+            return
+
+        # 1. Find user by Strava Athlete ID
+        user = db.query(User).filter(User.strava_athlete_id == str(owner_id)).first()
+        if not user:
+            print(f"⚠️ Webhook Ignored: User not found for owner_id {owner_id}")
+            return
+
+        # 2. Handle Event Type
+        if aspect_type == "create":
+            print(f"🆕 Webhook: Creating activity {object_id}")
+            try:
+                access_token = await self.ensure_valid_token(user, db)
+                activity_data = await self.get_activity(access_token, object_id)
+                if activity_data:
+                    await self._save_activity(user, activity_data, db)
+                    print(f"✅ Activity {object_id} saved successfully via webhook.")
+            except Exception as e:
+                print(f"❌ Webhook Error processing create: {e}")
+
+        elif aspect_type == "delete":
+            print(f"🗑️ Webhook: Deleting activity {object_id}")
+            try:
+                db.query(Activity).filter(
+                    Activity.strava_id == object_id,
+                    Activity.user_id == user.id
+                ).delete()
+                db.commit()
+                print(f"✅ Activity {object_id} deleted successfully via webhook.")
+            except Exception as e:
+                print(f"❌ Webhook Error processing delete: {e}")
+
+        elif aspect_type == "update":
+            # Optional: handle title/description updates
+            # For now we ignore updates to save bandwidth
+            print(f"ℹ️ Webhook: Activity {object_id} updated (ignored)")
+
+
 # Singleton instance
 strava_service = StravaService()

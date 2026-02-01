@@ -10,7 +10,9 @@ import os
 
 from app.config import get_settings
 from app.core.database import create_tables
-from app.api.v1 import api_router
+from app.config import get_settings
+from app.core.database import create_tables
+from app.api.v1 import api_router, webhooks
 from app.scheduler import start_scheduler
 
 settings = get_settings()
@@ -38,6 +40,7 @@ app.add_middleware(
 # Include API router
 # Include API router
 app.include_router(api_router, prefix=settings.api_v1_prefix)
+app.include_router(webhooks.router, prefix=settings.api_v1_prefix)
 
 
 @app.on_event("startup")
