@@ -383,8 +383,14 @@ class StravaService:
                 access_token = await self.ensure_valid_token(user, db)
                 activity_data = await self.get_activity(access_token, object_id)
                 if activity_data:
-                    await self._save_activity(user, activity_data, db)
+                    activity = await self._save_activity(user, activity_data, db)
                     print(f"✅ Activity {object_id} saved successfully via webhook.")
+                    
+                    # TRIGGER ANALYSIS (Simulated or Real)
+                    from app.services.analysis_service import analysis_service
+                    await analysis_service.analyze_activity(activity, user, db)
+                    print(f"🧠 Analysis generated for activity {object_id}")
+                    
             except Exception as e:
                 print(f"❌ Webhook Error processing create: {e}")
 
