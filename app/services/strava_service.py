@@ -391,6 +391,30 @@ class StravaService:
                     await analysis_service.analyze_activity(activity, user, db)
                     print(f"🧠 Analysis generated for activity {object_id}")
                     
+                    # UNIFIED NOTIFICATION
+                    from app.services.notification_service import notification_service
+                    
+                    # Generate motivation text
+                    motivation_text = f"¡Nueva actividad registrada: {activity.name}! 🏃‍♂️💪"
+                    
+                    # Note: We need to use sync method inside async function properly, or make service async
+                    # Here we pass the session 'db' which is synchronous.
+                    # Ideally NotificationService.create_notification should be async if it does IO awaiting, 
+                    # but current implementation is sync DB operations.
+                    # However, since we are in an async method, we should likely make create_notification async 
+                    # or wrap it. The service definition I wrote earlier was async:
+                    # async def create_notification(...)
+                    
+                    await notification_service.create_notification(
+                        db=db,
+                        user=user,
+                        type="activity_created",
+                        title="Nueva Actividad",
+                        body=motivation_text,
+                        data={"activity_id": activity.id}
+                    )
+                    print(f"🔔 Notification created for activity {object_id}")
+                    
             except Exception as e:
                 print(f"❌ Webhook Error processing create: {e}")
 
