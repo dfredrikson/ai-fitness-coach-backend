@@ -13,7 +13,7 @@ from app.services.notification_service import notification_service
 router = APIRouter()
 
 
-@router.get("/", response_model=List[dict])
+@router.get("", response_model=List[dict])
 def get_notifications(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
